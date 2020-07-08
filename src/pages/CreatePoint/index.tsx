@@ -5,6 +5,7 @@ import { LeafletMouseEvent } from 'leaflet';
 import { Link, useHistory } from 'react-router-dom';
 import { Map, TileLayer, Marker } from 'react-leaflet';
 import { FiArrowLeft } from 'react-icons/fi';
+import Dropzone from '../../components/Dropzone';
 
 import './styles.css';
 import logo from '../../assets/logo.svg';
@@ -26,7 +27,7 @@ interface Item {
 const CreatePoint = () => {
   const [items, setItems] = useState<Item[]>([]);
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
-  
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -39,8 +40,10 @@ const CreatePoint = () => {
   const [cities, setCities] = useState<string[]>([]);
   const [selectedCity, setSelectedCity] = useState<string>('0');
 
-  const [initialPosition, setInitialPosition] = useState<[number,number]>([0,0]);
-  const [selectedPosition, setSelectedPosition] = useState<[number,number]>([0,0]);
+  const [initialPosition, setInitialPosition] = useState<[number, number]>([0, 0]);
+  const [selectedPosition, setSelectedPosition] = useState<[number, number]>([0, 0]);
+
+  const [selectedFile, setSelectedFile] = useState<File>();
 
   const history = useHistory();
 
@@ -59,7 +62,7 @@ const CreatePoint = () => {
       setItems(res.data)
     })
   }, [])
-  
+
   useEffect(() => {
     axios.get<IBGEUFResponse[]>('https://servicodados.ibge.gov.br/api/v1/localidades/estados')
       .then(res => {
@@ -106,26 +109,37 @@ const CreatePoint = () => {
 
   function handleSelectItem(id: number) {
     const alreadySelected = selectedItems.findIndex(item => item === id);
- 
+
     if (alreadySelected >= 0) {
       const filteredItems = selectedItems.filter(item => item !== id)
       setSelectedItems(filteredItems);
     }
     else
-      setSelectedItems([ ...selectedItems, id ]);
+      setSelectedItems([...selectedItems, id]);
   }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
-    const [ latitude, longitude ] = selectedPosition;
-    const data = { 
-      ...formData, 
-      uf: selectedUf,
-      city: selectedCity,
-      items: selectedItems,
-      latitude,
-      longitude
+    const [latitude, longitude] = selectedPosition;
+    const { name, email, whatsapp } = formData;
+    const items = selectedItems;
+    const uf = selectedUf;
+    const city = selectedCity;
+
+    const data = new FormData();
+
+    data.append('name', name);
+    data.append('email', email);
+    data.append('whatsapp', whatsapp);
+    data.append('latitude', String(latitude));
+    data.append('longitude', String(longitude));
+    data.append('items', items.join(','));
+    data.append('uf', uf);
+    data.append('city', city);
+
+    if (selectedFile) {
+      data.append('image', selectedFile);
     }
 
     await api.post('points', data);
@@ -138,10 +152,10 @@ const CreatePoint = () => {
   return (
     <div id="page-create-point">
       <header>
-        <img src={logo} alt="Ecoleta"/>
+        <img src={logo} alt="Ecoleta" />
 
         <Link to="/">
-            <FiArrowLeft />
+          <FiArrowLeft />
             Voltar para home
         </Link>
       </header>
@@ -152,6 +166,8 @@ const CreatePoint = () => {
           ponto de coleta
         </h1>
 
+        <Dropzone onFileUpload={setSelectedFile} />
+
         <fieldset>
           <legend>
             <h2>Dados</h2>
@@ -159,7 +175,7 @@ const CreatePoint = () => {
 
           <div className="field">
             <label htmlFor="name">Nome da entidade</label>
-            <input 
+            <input
               type="text"
               id="name"
               name="name"
@@ -169,7 +185,7 @@ const CreatePoint = () => {
           <div className="field-group">
             <div className="field">
               <label htmlFor="email">E-mail</label>
-              <input 
+              <input
                 type="email"
                 id="email"
                 name="email"
@@ -178,7 +194,7 @@ const CreatePoint = () => {
             </div>
             <div className="field">
               <label htmlFor="whatsapp">Whatsapp</label>
-              <input 
+              <input
                 type="text"
                 id="whatsapp"
                 name="whatsapp"
@@ -206,10 +222,10 @@ const CreatePoint = () => {
           <div className="field-group">
             <div className="field">
               <label htmlFor="uf">Estado (UF)</label>
-              <select 
-                value={selectedUf} 
-                onChange={handleSelectUf} 
-                name="uf" 
+              <select
+                value={selectedUf}
+                onChange={handleSelectUf}
+                name="uf"
                 id="uf"
               >
                 <option value="0">Selecione uma UF</option>
@@ -221,10 +237,10 @@ const CreatePoint = () => {
 
             <div className="field">
               <label htmlFor="city">Cidade</label>
-              <select 
-                value={selectedCity} 
-                onChange={handleSelectCity} 
-                name="city" 
+              <select
+                value={selectedCity}
+                onChange={handleSelectCity}
+                name="city"
                 id="city"
               >
                 <option value="0">Selecione uma cidade</option>
@@ -235,22 +251,22 @@ const CreatePoint = () => {
             </div>
           </div>
         </fieldset>
-        
+
         <fieldset>
           <legend>
             <h2>Ítens de coleta</h2>
             <span>Selecione um ou mais ítens abaixo</span>
           </legend>
-          
+
           <ul className="items-grid">
             {items.map(item => (
-              <li 
-                key={ item.id } 
+              <li
+                key={item.id}
                 onClick={() => handleSelectItem(item.id)}
                 className={selectedItems.includes(item.id) ? 'selected' : ''}
               >
-                <img src={ item.image_url } alt={ item.title }/>
-                <span>{ item.title }</span>
+                <img src={item.image_url} alt={item.title} />
+                <span>{item.title}</span>
               </li>
             ))}
           </ul>
